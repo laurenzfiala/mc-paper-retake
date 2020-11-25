@@ -1,0 +1,8 @@
+name: Retake
+version: ${project.version}
+main: dev.laurenz.mcpaperretake.McPaperRetake
+api-version: 1.16
+commands:
+  retake:
+    description: Manage Retake games.
+    usage: tbd
