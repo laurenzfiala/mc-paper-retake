@@ -26,7 +26,7 @@ public class ChestFiller {
         if (inv.isEmpty()) {
             ItemStack[] randomItems;
             double random = Math.random();
-            if (random <= 0.5) {
+            if (random <= 0.6) {
                 randomItems = this.tier1Items(Mode.RANDOM);
             } else if (random <= 0.9) {
                 randomItems = this.tier2Items(Mode.RANDOM);

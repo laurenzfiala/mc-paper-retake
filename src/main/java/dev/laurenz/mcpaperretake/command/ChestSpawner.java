@@ -4,7 +4,6 @@ import dev.laurenz.mcpaperretake.util.LocationUtils;
 import org.bukkit.*;
 import org.bukkit.block.Block;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -24,28 +23,29 @@ public class ChestSpawner {
         int centerX = (int) center.getX();
         int centerZ = (int) center.getZ();
 
-        List<CompletableFuture> futures = new LinkedList<>();
-        List<Chunk> chunks = new ArrayList<>();
+        List<CompletableFuture<Void>> futures = new LinkedList<>();
 
         for (int x = centerX - outerRadius; x < centerX + outerRadius; x += 16) {
             for (int z = centerZ - outerRadius; z < centerZ + outerRadius; z += 16) {
+
                 int distance = LocationUtils.distanceXZ(center, x, z);
                 if (distance >= innerRadius - CHUNK_MAX_DISTANCE - 1 && distance <= outerRadius + CHUNK_MAX_DISTANCE) {
-                    futures.add(world.getChunkAtAsync(x, z).thenAccept(chunks::add));
+                    futures.add(
+                        world.getChunkAtAsync(x, z)
+                             .thenAccept(chunk -> this.spawnChestsForChunk(data, chunk))
+                    );
                 }
+
             }
         }
 
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[chunks.size()])).thenRun(() -> {
-            chunks.forEach(chunk -> {
-                this.spawnChestsForChunk(data, chunk);
-            });
-        });
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
 
     }
 
-    private void spawnChestsForChunk(Data data, Chunk chunk) {
+    private CompletableFuture<Void> spawnChestsForChunk(Data data, Chunk chunk) {
 
+        List<CompletableFuture<Boolean>> genFutures = new LinkedList<>();
         int minBlockX = chunk.getX();
         int minBlockZ = chunk.getZ();
 
@@ -58,13 +58,17 @@ public class ChestSpawner {
                 continue;
             }
 
-            Block ground = data.world().getHighestBlockAt(randomBlockX, randomBlockZ);
-            data.generator().tryGenerate(ground.getLocation()).handle((aBoolean, throwable) -> {
+            Block ground = data.world().getHighestBlockAt(randomBlockX, randomBlockZ, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+            CompletableFuture<Boolean> genFuture = data.generator().tryGenerate(ground.getLocation());
+            genFuture.handle((aBoolean, throwable) -> {
                 Bukkit.getServer().broadcastMessage("Failed to generate structure: " + throwable.getMessage());
                 return false;
             });
+            genFutures.add(genFuture);
 
         }
+
+        return CompletableFuture.allOf(genFutures.toArray(new CompletableFuture[0]));
 
     }
 
